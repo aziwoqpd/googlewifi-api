@@ -131,14 +131,17 @@ class GoogleWifi:
 
       return response
 
-  async def get_access_token(self):
-    """Get Access Token"""
-    auth_response = gpsoauth.perform_oauth("jwperry30@gmail.com",
+  def _tokenme(self):
+    auth_response = gpsoauth.perform_oauth(self._email,
       self._master_token,
       "ios:abc", 
       service="oauth2:https://www.google.com/accounts/OAuthLogin", 
       app="com.google.android.apps.chromecast.app", client_sig="24bb24c05e47e0aefa68a58a766179d9b613a600")
     self._access_token = auth_response['Auth']
+
+  async def get_access_token(self):
+    """Get Access Token"""
+    await asyncio.get_running_loop().run_in_executor(None, self._tokenme)
 
   async def get_api_token(self):
     """Get the API Token."""
@@ -175,7 +178,7 @@ class GoogleWifi:
       payload = {}
       
       response = await self.get_api(url, headers, payload)
-
+      
       if response.get("groups"):
         return await self.structure_systems(response)
       else:
