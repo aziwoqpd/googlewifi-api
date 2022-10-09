@@ -5,9 +5,12 @@ import datetime
 import dateutil.parser
 import grpc
 import gpsoauth
+import concurrent.futures
 
 from .v1_pb2 import GetHomeGraphRequest
 from .v1_pb2_grpc import StructuresServiceStub
+
+executor = concurrent.futures.ThreadPoolExecutor(max_workers=3)
 
 GH_HEADERS = {"Content-Type": "application/json"}
 class GoogleWifi:
@@ -141,7 +144,7 @@ class GoogleWifi:
 
   async def get_access_token(self):
     """Get Access Token"""
-    await asyncio.get_running_loop().run_in_executor(None, self._tokenme)
+    await asyncio.get_running_loop().run_in_executor(executor, self._tokenme)
 
   async def get_api_token(self):
     """Get the API Token."""
