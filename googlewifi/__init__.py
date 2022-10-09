@@ -4,6 +4,7 @@ import json
 import datetime
 import dateutil.parser
 import grpc
+import gpsoauth
 
 from .v1_pb2 import GetHomeGraphRequest
 from .v1_pb2_grpc import StructuresServiceStub
@@ -11,7 +12,7 @@ from .v1_pb2_grpc import StructuresServiceStub
 GH_HEADERS = {"Content-Type": "application/json"}
 class GoogleWifi:
 
-  def __init__(self, refresh_token, session:aiohttp.ClientSession = None):
+  def __init__(self, master_token, email, session:aiohttp.ClientSession = None):
     """Get the API Bearer Token."""
 
     if session:
@@ -19,7 +20,8 @@ class GoogleWifi:
     else:
       self._session = aiohttp.ClientSession()
 
-    self._refresh_token = refresh_token
+    self._master_token = master_token
+    self._email = email
     self._access_token = None
     self._api_token = None
     self._systems = None
@@ -131,15 +133,12 @@ class GoogleWifi:
 
   async def get_access_token(self):
     """Get Access Token"""
-    url = "https://www.googleapis.com/oauth2/v4/token"
-    payload = f"client_id=936475272427.apps.googleusercontent.com&grant_type=refresh_token&refresh_token={self._refresh_token}"
-    headers = {
-      'Content-Type': 'application/x-www-form-urlencoded'
-    }
-    
-    response = await self.post_api(url, headers, payload)
-    
-    self._access_token = response.get("access_token", None)
+    auth_response = gpsoauth.perform_oauth("jwperry30@gmail.com",
+      self._master_token,
+      "ios:abc", 
+      service="oauth2:https://www.google.com/accounts/OAuthLogin", 
+      app="com.google.android.apps.chromecast.app", client_sig="24bb24c05e47e0aefa68a58a766179d9b613a600")
+    self._access_token = auth_response['Auth']
 
   async def get_api_token(self):
     """Get the API Token."""
@@ -150,18 +149,8 @@ class GoogleWifi:
       if not self._access_token:
         raise ConnectionError("Authorization Error")
 
-    oath_url = "https://oauthaccountmanager.googleapis.com/v1/issuetoken"
-    payload = "app_id=com.google.OnHub&client_id=586698244315-vc96jg3mn4nap78iir799fc2ll3rk18s.apps.googleusercontent.com&hl=en-US&lib_ver=3.3&response_type=token&scope=https%3A//www.googleapis.com/auth/accesspoints%20https%3A//www.googleapis.com/auth/clouddevices"
-    headers = {
-      'Authorization': f"Bearer {self._access_token}",
-      'Content-Type': 'application/x-www-form-urlencoded'
-    }
-    
-    response = await self.post_api(oath_url, headers, payload)
-    
-    self._api_token = response.get("token", None)
-    if self._api_token:
-      return True
+    self._api_token = self._access_token
+    return True
 
   async def connect(self):
     """Authenticate to the Google Wifi services."""
